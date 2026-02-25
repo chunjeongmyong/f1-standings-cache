@@ -2,7 +2,7 @@ name: Update F1 Standings Cache
 
 on:
   schedule:
-    - cron: "0 0 * * *" # 매일 00:00 UTC (KST 09:00)
+    - cron: "0 0 * * *" # 00:00 UTC (KST 09:00)
   workflow_dispatch:
 
 permissions:
@@ -11,12 +11,12 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fetch standings (current, fallback to last season)
+      - name: Fetch standings (current, fallback to last)
+        shell: bash
         run: |
           set -euo pipefail
 
@@ -26,13 +26,7 @@ jobs:
           echo "Fetching current standings..."
           curl -fsSL "$URL_CUR" -o standings.json
 
-          TOTAL=$(python3 - <<'PY'
-import json
-with open("standings.json","r",encoding="utf-8") as f:
-    d=json.load(f)
-print(d.get("MRData",{}).get("total","0"))
-PY
-)
+          TOTAL="$(python3 -c 'import json; d=json.load(open("standings.json","r",encoding="utf-8")); print(d.get("MRData",{}).get("total","0"))')"
           echo "current total=$TOTAL"
 
           if [ "$TOTAL" = "0" ]; then
@@ -40,10 +34,11 @@ PY
             curl -fsSL "$URL_LAST" -o standings.json
           fi
 
-          echo "Done. standings.json size:"
+          echo "standings.json bytes:"
           wc -c standings.json
 
       - name: Commit & push if changed
+        shell: bash
         run: |
           set -euo pipefail
 
