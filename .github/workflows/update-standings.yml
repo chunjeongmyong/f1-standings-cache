@@ -2,19 +2,18 @@ name: Update F1 Standings
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # 매일 00:00 UTC (한국 오전 9시)
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch standings
+      - name: Fetch standings (Jolpica Ergast-compatible)
         run: |
-          curl -s https://ergast.com/api/f1/current/driverStandings.json > standings.json
+          curl -sS https://api.jolpi.ca/ergast/f1/current/driverStandings.json > standings.json
 
       - name: Commit if changed
         run: |
