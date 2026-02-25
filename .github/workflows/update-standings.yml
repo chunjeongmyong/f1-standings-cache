@@ -11,9 +11,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch standings (Jolpica Ergast-compatible)
-        run: |
-          curl -sS https://api.jolpi.ca/ergast/f1/current/driverStandings.json > standings.json
+      - name: Fetch standings (current, fallback to last season)
+  run: |
+    set -e
+    URL_CUR="https://api.jolpi.ca/ergast/f1/current/driverStandings.json"
+    URL_LAST="https://api.jolpi.ca/ergast/f1/last/driverStandings.json"
+
+    curl -sS "$URL_CUR" > standings.json
+    TOTAL=$(python3 - <<'PY'
+import json
+d=json.load(open("standings.json","r",encoding="utf-8"))
+print(d.get("MRData",{}).get("total","0"))
+PY
+)
+    echo "current total=$TOTAL"
+
+    if [ "$TOTAL" = "0" ]; then
+      echo "No current standings yet. Falling back to last season."
+      curl -sS "$URL_LAST" > standings.json
+    fi
 
       - name: Commit if changed
         run: |
