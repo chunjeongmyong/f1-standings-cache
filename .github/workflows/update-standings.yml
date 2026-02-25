@@ -15,13 +15,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fetch standings (current, fallback to last)
+      - name: Fetch standings (current, fallback to previous season)
         shell: bash
         run: |
           set -euo pipefail
 
+          YEAR="$(date -u +%Y)"
+          PREV="$((YEAR - 1))"
+
           URL_CUR="https://api.jolpi.ca/ergast/f1/current/driverStandings.json"
-          URL_LAST="https://api.jolpi.ca/ergast/f1/last/driverStandings.json"
+          URL_PREV="https://api.jolpi.ca/ergast/f1/${PREV}/driverStandings.json"
 
           echo "Fetching current standings..."
           curl -fsSL "$URL_CUR" -o standings.json
@@ -30,8 +33,8 @@ jobs:
           echo "current total=$TOTAL"
 
           if [ "$TOTAL" = "0" ]; then
-            echo "No current standings yet. Falling back to last season..."
-            curl -fsSL "$URL_LAST" -o standings.json
+            echo "No current standings yet. Falling back to previous season: $PREV"
+            curl -fsSL "$URL_PREV" -o standings.json
           fi
 
           echo "standings.json bytes:"
