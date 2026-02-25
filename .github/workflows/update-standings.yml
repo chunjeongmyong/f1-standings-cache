@@ -1,40 +1,61 @@
-name: Update F1 Standings
+name: Update F1 Standings Cache
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *" # 매일 00:00 UTC (KST 09:00)
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Fetch standings (current, fallback to last season)
-  run: |
-    set -e
-    URL_CUR="https://api.jolpi.ca/ergast/f1/current/driverStandings.json"
-    URL_LAST="https://api.jolpi.ca/ergast/f1/last/driverStandings.json"
+        run: |
+          set -euo pipefail
 
-    curl -sS "$URL_CUR" > standings.json
-    TOTAL=$(python3 - <<'PY'
+          URL_CUR="https://api.jolpi.ca/ergast/f1/current/driverStandings.json"
+          URL_LAST="https://api.jolpi.ca/ergast/f1/last/driverStandings.json"
+
+          echo "Fetching current standings..."
+          curl -fsSL "$URL_CUR" -o standings.json
+
+          TOTAL=$(python3 - <<'PY'
 import json
-d=json.load(open("standings.json","r",encoding="utf-8"))
+with open("standings.json","r",encoding="utf-8") as f:
+    d=json.load(f)
 print(d.get("MRData",{}).get("total","0"))
 PY
 )
-    echo "current total=$TOTAL"
+          echo "current total=$TOTAL"
 
-    if [ "$TOTAL" = "0" ]; then
-      echo "No current standings yet. Falling back to last season."
-      curl -sS "$URL_LAST" > standings.json
-    fi
+          if [ "$TOTAL" = "0" ]; then
+            echo "No current standings yet. Falling back to last season..."
+            curl -fsSL "$URL_LAST" -o standings.json
+          fi
 
-      - name: Commit if changed
+          echo "Done. standings.json size:"
+          wc -c standings.json
+
+      - name: Commit & push if changed
         run: |
+          set -euo pipefail
+
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
           git add standings.json
-          git diff --cached --quiet || git commit -m "Update standings"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update standings cache"
           git push
